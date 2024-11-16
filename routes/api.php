@@ -4,6 +4,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\BudgetController;
 use App\Http\Controllers\API\CategoryController;
 use App\Http\Controllers\API\TransactionController;
+use App\Http\Controllers\API\SavingsGoalController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -17,5 +18,8 @@ Route::prefix('auth')->group(function () {
         Route::apiResource('categories', CategoryController::class);
         Route::apiResource('transactions', TransactionController::class);
         Route::get('transactions/summary', [TransactionController::class, 'summary']);
+        Route::apiResource('savings-goals', SavingsGoalController::class);
+        Route::post('savings-goals/{savings_goal}/contribute', [SavingsGoalController::class, 'contribute'])
+            ->name('savings-goals.contribute');
     });
 }); 
