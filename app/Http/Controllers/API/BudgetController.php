@@ -7,6 +7,7 @@ use App\Models\Budget;
 use App\Http\Requests\Budget\StoreBudgetRequest;
 use App\Http\Requests\Budget\UpdateBudgetRequest;
 use App\Http\Resources\BudgetResource;
+use Illuminate\Support\Facades\Gate;
 
 class BudgetController extends Controller
 {
@@ -37,23 +38,23 @@ class BudgetController extends Controller
 
     public function show(Budget $budget)
     {
-        $this->authorize('view', $budget);
+        Gate::authorize('view', $budget);
         return new BudgetResource($budget);
     }
 
     public function update(UpdateBudgetRequest $request, Budget $budget)
     {
-        $this->authorize('update', $budget);
-        
+        Gate::authorize('update', $budget);
+
         $budget->update($request->validated());
         return new BudgetResource($budget);
     }
 
     public function destroy(Budget $budget)
     {
-        $this->authorize('delete', $budget);
-        
+        Gate::authorize('delete', $budget);
+
         $budget->update(['is_active' => false]);
         return response()->json(['message' => 'Budget deactivated successfully']);
     }
-} 
+}

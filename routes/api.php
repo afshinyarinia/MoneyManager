@@ -10,16 +10,19 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+});
+
+Route::middleware('auth:api')->group(function () {
+    Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::post('auth/refresh', [AuthController::class, 'refresh']);
     
-    Route::middleware('auth:api')->group(function () {
-        Route::post('logout', [AuthController::class, 'logout']);
-        Route::post('refresh', [AuthController::class, 'refresh']);
-        Route::apiResource('budgets', BudgetController::class);
-        Route::apiResource('categories', CategoryController::class);
-        Route::apiResource('transactions', TransactionController::class);
-        Route::get('transactions/summary', [TransactionController::class, 'summary']);
-        Route::apiResource('savings-goals', SavingsGoalController::class);
-        Route::post('savings-goals/{savings_goal}/contribute', [SavingsGoalController::class, 'contribute'])
-            ->name('savings-goals.contribute');
-    });
+    Route::apiResource('budgets', BudgetController::class);
+    Route::apiResource('categories', CategoryController::class);
+    Route::get('transactions/summary', [TransactionController::class, 'summary'])
+        ->middleware('auth:api');
+    Route::apiResource('transactions', TransactionController::class)
+        ->middleware('auth:api');
+    Route::apiResource('savings-goals', SavingsGoalController::class);
+    Route::post('savings-goals/{savings_goal}/contribute', [SavingsGoalController::class, 'contribute'])
+        ->name('savings-goals.contribute');
 }); 

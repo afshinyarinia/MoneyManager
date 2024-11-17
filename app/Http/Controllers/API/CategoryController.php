@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Http\Requests\Category\StoreCategoryRequest;
 use App\Http\Requests\Category\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
+use Illuminate\Support\Facades\Gate;
 
 class CategoryController extends Controller
 {
@@ -31,20 +32,22 @@ class CategoryController extends Controller
             'is_system' => false,
         ]);
 
-        return new CategoryResource($category);
+        return (new CategoryResource($category))
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function update(UpdateCategoryRequest $request, Category $category)
     {
-        $this->authorize('update', $category);
-        
+        Gate::authorize('update', $category);
+
         $category->update($request->validated());
         return new CategoryResource($category);
     }
 
     public function destroy(Category $category)
     {
-        $this->authorize('delete', $category);
+        Gate::authorize('delete', $category);
 
         if ($category->transactions()->exists()) {
             return response()->json([
@@ -55,4 +58,4 @@ class CategoryController extends Controller
         $category->delete();
         return response()->json(['message' => 'Category deleted successfully']);
     }
-} 
+}

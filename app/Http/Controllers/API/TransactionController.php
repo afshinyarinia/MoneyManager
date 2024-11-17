@@ -7,11 +7,14 @@ use App\Models\Transaction;
 use App\Http\Requests\Transaction\StoreTransactionRequest;
 use App\Http\Requests\Transaction\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 
 class TransactionController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $transactions = Transaction::query()
             ->where('user_id', auth()->id())
@@ -27,7 +30,7 @@ class TransactionController extends Controller
         return TransactionResource::collection($transactions);
     }
 
-    public function store(StoreTransactionRequest $request)
+    public function store(StoreTransactionRequest $request): TransactionResource
     {
         $transaction = Transaction::create([
             'user_id' => auth()->id(),
@@ -39,28 +42,27 @@ class TransactionController extends Controller
             'is_recurring' => $request->is_recurring,
             'recurring_frequency' => $request->recurring_frequency,
         ]);
-
-        return new TransactionResource($transaction);
+        return (new TransactionResource($transaction));
     }
 
     public function show(Transaction $transaction)
     {
-        $this->authorize('view', $transaction);
+        Gate::authorize('view', $transaction);
         return new TransactionResource($transaction);
     }
 
     public function update(UpdateTransactionRequest $request, Transaction $transaction)
     {
-        $this->authorize('update', $transaction);
-        
+        Gate::authorize('update', $transaction);
+
         $transaction->update($request->validated());
         return new TransactionResource($transaction);
     }
 
     public function destroy(Transaction $transaction)
     {
-        $this->authorize('delete', $transaction);
-        
+        Gate::authorize('delete', $transaction);
+
         $transaction->delete();
         return response()->json(['message' => 'Transaction deleted successfully']);
     }
@@ -88,4 +90,4 @@ class TransactionController extends Controller
             ->groupBy('category.name')
             ->map(fn($transactions) => $transactions->sum('amount'));
     }
-} 
+}

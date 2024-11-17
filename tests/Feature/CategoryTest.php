@@ -3,11 +3,12 @@
 use App\Models\User;
 use App\Models\Category;
 use App\Models\Transaction;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use function Pest\Laravel\{postJson, getJson, putJson, deleteJson};
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->token = auth()->login($this->user);
+    $this->token = JWTAuth::fromUser($this->user);
 });
 
 test('user can create a category', function () {
@@ -18,7 +19,7 @@ test('user can create a category', function () {
         'color' => '#FF5733',
     ];
 
-    $response = postJson('/api/auth/categories', $categoryData, [
+    $response = postJson('/api/categories', $categoryData, [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
@@ -43,9 +44,9 @@ test('user can create a category', function () {
 
 test('user can view categories including system categories', function () {
     Category::factory()->system()->create(['name' => 'Salary']);
-    Category::factory(2)->create(['user_id' => $this->user->id]);
+    Category::factory()->count(2)->create(['user_id' => $this->user->id]);
 
-    $response = getJson('/api/auth/categories', [
+    $response = getJson('/api/categories', [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
@@ -56,7 +57,7 @@ test('user can view categories including system categories', function () {
 test('user cannot update system category', function () {
     $category = Category::factory()->system()->create();
 
-    $response = putJson("/api/auth/categories/{$category->id}", 
+    $response = putJson("/api/categories/{$category->id}",
         ['name' => 'New Name'],
         ['Authorization' => 'Bearer ' . $this->token]
     );
@@ -71,9 +72,9 @@ test('user cannot delete category with transactions', function () {
         'category_id' => $category->id
     ]);
 
-    $response = deleteJson("/api/auth/categories/{$category->id}", [], [
+    $response = deleteJson("/api/categories/{$category->id}", [], [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
     $response->assertStatus(422);
-}); 
+});

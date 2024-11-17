@@ -8,11 +8,14 @@ use App\Http\Requests\SavingsGoal\StoreSavingsGoalRequest;
 use App\Http\Requests\SavingsGoal\UpdateSavingsGoalRequest;
 use App\Http\Requests\SavingsGoal\ContributeRequest;
 use App\Http\Resources\SavingsGoalResource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 
 class SavingsGoalController extends Controller
 {
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
         $goals = SavingsGoal::where('user_id', auth()->id())
             ->latest()
@@ -21,7 +24,7 @@ class SavingsGoalController extends Controller
         return SavingsGoalResource::collection($goals);
     }
 
-    public function store(StoreSavingsGoalRequest $request)
+    public function store(StoreSavingsGoalRequest $request): JsonResponse
     {
         $goal = SavingsGoal::create([
             'user_id' => auth()->id(),
@@ -32,44 +35,38 @@ class SavingsGoalController extends Controller
             'is_completed' => false,
         ]);
 
-        return new SavingsGoalResource($goal)
+        return (new SavingsGoalResource($goal))
             ->response()
             ->setStatusCode(201);
     }
 
-    public function show(SavingsGoal $savingsGoal)
+    public function show(SavingsGoal $savingsGoal): SavingsGoalResource
     {
-        $this->authorize('view', $savingsGoal);
+        Gate::authorize('view', $savingsGoal);
         return new SavingsGoalResource($savingsGoal);
     }
 
-    public function update(UpdateSavingsGoalRequest $request, SavingsGoal $savingsGoal)
+    public function update(UpdateSavingsGoalRequest $request, SavingsGoal $savingsGoal): SavingsGoalResource
     {
-        $this->authorize('update', $savingsGoal);
-        
+        Gate::authorize('update', $savingsGoal);
+
         $savingsGoal->update($request->validated());
         return new SavingsGoalResource($savingsGoal);
     }
 
-    public function contribute(ContributeRequest $request, SavingsGoal $savingsGoal)
+    public function contribute(ContributeRequest $request, SavingsGoal $savingsGoal): JsonResponse|SavingsGoalResource
     {
-        $this->authorize('update', $savingsGoal);
-
-        if ($savingsGoal->is_completed) {
-            return response()->json([
-                'message' => 'This savings goal has already been completed'
-            ], 422);
-        }
+        Gate::authorize('update', $savingsGoal);
 
         $savingsGoal->updateProgress($request->amount);
         return new SavingsGoalResource($savingsGoal);
     }
 
-    public function destroy(SavingsGoal $savingsGoal)
+    public function destroy(SavingsGoal $savingsGoal): JsonResponse
     {
-        $this->authorize('delete', $savingsGoal);
-        
+        Gate::authorize('delete', $savingsGoal);
+
         $savingsGoal->delete();
         return response()->json(['message' => 'Savings goal deleted successfully']);
     }
-} 
+}

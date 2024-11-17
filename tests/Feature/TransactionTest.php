@@ -3,11 +3,12 @@
 use App\Models\User;
 use App\Models\Category;
 use App\Models\Transaction;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use function Pest\Laravel\{postJson, getJson, putJson, deleteJson};
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->token = auth()->login($this->user);
+    $this->token = JWTAuth::fromUser($this->user);
     $this->category = Category::factory()->create(['user_id' => $this->user->id]);
 });
 
@@ -21,7 +22,7 @@ test('user can create a transaction', function () {
         'is_recurring' => false,
     ];
 
-    $response = postJson('/api/auth/transactions', $transactionData, [
+    $response = postJson('/api/transactions', $transactionData, [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
@@ -56,7 +57,7 @@ test('user can create a recurring transaction', function () {
         'recurring_frequency' => 'monthly',
     ];
 
-    $response = postJson('/api/auth/transactions', $transactionData, [
+    $response = postJson('/api/transactions', $transactionData, [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
@@ -71,7 +72,7 @@ test('user can view their transactions', function () {
         'category_id' => $this->category->id
     ]);
 
-    $response = getJson('/api/auth/transactions', [
+    $response = getJson('/api/transactions', [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
@@ -94,7 +95,7 @@ test('user can filter transactions by date range', function () {
         'transaction_date' => now()
     ]);
 
-    $response = getJson('/api/auth/transactions?' . http_build_query([
+    $response = getJson('/api/transactions?' . http_build_query([
         'date_from' => now()->subMonth()->format('Y-m-d'),
         'date_to' => now()->format('Y-m-d')
     ]), [
@@ -122,7 +123,7 @@ test('user can view transaction summary', function () {
         'transaction_date' => now()
     ]);
 
-    $response = getJson('/api/auth/transactions/summary', [
+    $response = getJson('/api/transactions/summary', [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
@@ -140,9 +141,9 @@ test('user cannot access other users transactions', function () {
         'category_id' => Category::factory()->create(['user_id' => $otherUser->id])
     ]);
 
-    $response = getJson("/api/auth/transactions/{$transaction->id}", [
+    $response = getJson("/api/transactions/{$transaction->id}", [
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
     $response->assertStatus(403);
-}); 
+});

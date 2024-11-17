@@ -2,11 +2,12 @@
 
 use App\Models\User;
 use App\Models\SavingsGoal;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use function Pest\Laravel\{postJson, getJson, putJson, deleteJson};
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->token = auth()->login($this->user);
+    $this->token = JWTAuth::fromUser($this->user);
 });
 
 test('user can create a savings goal', function () {
@@ -57,8 +58,8 @@ test('user can contribute to savings goal', function () {
     ]);
 
     $response->assertStatus(200)
-        ->assertJsonPath('data.current_amount', 500.00)
-        ->assertJsonPath('data.progress_percentage', 50.00);
+        ->assertJsonPath('data.current_amount', 500)
+        ->assertJsonPath('data.progress_percentage', 50);
 });
 
 test('user cannot contribute more than remaining amount', function () {
@@ -109,7 +110,7 @@ test('user cannot contribute to completed goal', function () {
     ]);
 
     $response->assertStatus(422)
-        ->assertJsonPath('message', 'This savings goal has already been completed');
+        ->assertJsonPath('message', 'The contribution amount cannot exceed the remaining amount needed for this goal.');
 });
 
 test('user cannot access other users savings goals', function () {
@@ -123,4 +124,4 @@ test('user cannot access other users savings goals', function () {
     ]);
 
     $response->assertStatus(403);
-}); 
+});

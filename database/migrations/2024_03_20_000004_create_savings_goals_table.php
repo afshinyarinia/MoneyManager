@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('name');
-            $table->decimal('target_amount', 10, 2);
-            $table->decimal('current_amount', 10, 2)->default(0);
+            $table->integer('target_amount');
+            $table->integer('current_amount')->default(0);
             $table->date('target_date')->nullable();
             $table->boolean('is_completed')->default(false);
             $table->timestamps();
@@ -24,4 +24,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('savings_goals');
     }
-}; 
+};

@@ -10,7 +10,7 @@ class TransactionResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'category' => new CategoryResource($this->whenLoaded('category')),
+            'category' => new CategoryResource($this->category),
             'amount' => $this->amount,
             'type' => $this->type,
             'description' => $this->description,
@@ -21,4 +21,4 @@ class TransactionResource extends JsonResource
             'updated_at' => $this->updated_at,
         ];
     }
-} 
+}
