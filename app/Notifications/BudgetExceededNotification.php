@@ -11,6 +11,8 @@ class BudgetExceededNotification extends Notification
 {
     use Queueable;
 
+    public array $via = ['mail', 'database'];
+
     public function __construct(
         protected Budget $budget,
         protected float $spentAmount
@@ -18,7 +20,7 @@ class BudgetExceededNotification extends Notification
 
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return $this->via;
     }
 
     public function toMail($notifiable): MailMessage
@@ -40,5 +42,15 @@ class BudgetExceededNotification extends Notification
             'spent_amount' => $this->spentAmount,
             'type' => 'budget_exceeded'
         ];
+    }
+
+    public function getBudget(): Budget
+    {
+        return $this->budget;
+    }
+
+    public function getSpentAmount(): float
+    {
+        return $this->spentAmount;
     }
 } 

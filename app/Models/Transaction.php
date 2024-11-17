@@ -49,22 +49,30 @@ class Transaction extends Model
             ->get();
 
         foreach ($activeBudgets as $budget) {
-            $spentAmount = $budget->spent_amount;
+            $spentAmount = Transaction::where('user_id', $this->user_id)
+                ->where('type', 'expense')
+                ->whereBetween('transaction_date', [$budget->start_date, $budget->end_date ?? now()])
+                ->sum('amount');
             
             if ($spentAmount > $budget->amount) {
-                $settings = $this->user->notificationSetting;
-                
-                if ($settings->budget_exceeded_database || $settings->budget_exceeded_email) {
-                    $channels = [];
-                    if ($settings->budget_exceeded_database) $channels[] = 'database';
-                    if ($settings->budget_exceeded_email) $channels[] = 'mail';
-                    
-                    $this->user->notify(
-                        (new BudgetExceededNotification($budget, $spentAmount))
-                            ->via($channels)
-                    );
-                }
+                $this->sendBudgetExceededNotification($budget, $spentAmount);
             }
+        }
+    }
+
+    protected function sendBudgetExceededNotification(Budget $budget, float $spentAmount): void
+    {
+        $settings = $this->user->notificationSetting;
+        
+        if ($settings->budget_exceeded_database || $settings->budget_exceeded_email) {
+            $channels = [];
+            if ($settings->budget_exceeded_database) $channels[] = 'database';
+            if ($settings->budget_exceeded_email) $channels[] = 'mail';
+            
+            $notification = new BudgetExceededNotification($budget, $spentAmount);
+            $notification->via = $channels;
+            
+            $this->user->notify($notification);
         }
     }
 

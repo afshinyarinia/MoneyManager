@@ -11,6 +11,8 @@ class SavingsGoalMilestoneNotification extends Notification
 {
     use Queueable;
 
+    public array $via = ['mail', 'database'];
+
     public function __construct(
         protected SavingsGoal $savingsGoal,
         protected int $milestone
@@ -18,7 +20,7 @@ class SavingsGoalMilestoneNotification extends Notification
 
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return $this->via;
     }
 
     public function toMail($notifiable): MailMessage
@@ -41,5 +43,15 @@ class SavingsGoalMilestoneNotification extends Notification
             'target_amount' => $this->savingsGoal->target_amount,
             'type' => 'savings_milestone'
         ];
+    }
+
+    public function getSavingsGoal(): SavingsGoal
+    {
+        return $this->savingsGoal;
+    }
+
+    public function getMilestone(): int
+    {
+        return $this->milestone;
     }
 } 

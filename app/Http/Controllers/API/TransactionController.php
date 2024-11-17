@@ -30,7 +30,7 @@ class TransactionController extends Controller
         return TransactionResource::collection($transactions);
     }
 
-    public function store(StoreTransactionRequest $request): TransactionResource
+    public function store(StoreTransactionRequest $request): JsonResponse
     {
         $transaction = Transaction::create([
             'user_id' => auth()->id(),
@@ -42,16 +42,19 @@ class TransactionController extends Controller
             'is_recurring' => $request->is_recurring,
             'recurring_frequency' => $request->recurring_frequency,
         ]);
-        return (new TransactionResource($transaction));
+
+        return (new TransactionResource($transaction))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function show(Transaction $transaction)
+    public function show(Transaction $transaction): TransactionResource
     {
         Gate::authorize('view', $transaction);
         return new TransactionResource($transaction);
     }
 
-    public function update(UpdateTransactionRequest $request, Transaction $transaction)
+    public function update(UpdateTransactionRequest $request, Transaction $transaction): TransactionResource
     {
         Gate::authorize('update', $transaction);
 
@@ -59,7 +62,7 @@ class TransactionController extends Controller
         return new TransactionResource($transaction);
     }
 
-    public function destroy(Transaction $transaction)
+    public function destroy(Transaction $transaction): JsonResponse
     {
         Gate::authorize('delete', $transaction);
 
@@ -67,7 +70,7 @@ class TransactionController extends Controller
         return response()->json(['message' => 'Transaction deleted successfully']);
     }
 
-    public function summary(Request $request)
+    public function summary(Request $request): JsonResponse
     {
         $month = $request->month ?? now()->month;
         $year = $request->year ?? now()->year;

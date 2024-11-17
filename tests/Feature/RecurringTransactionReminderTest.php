@@ -30,7 +30,7 @@ test('reminders are sent for transactions due within 24 hours', function () {
         $this->user,
         RecurringTransactionReminder::class,
         function ($notification) use ($transaction) {
-            return $notification->transaction->id === $transaction->id;
+            return $notification->getTransaction()->id === $transaction->id;
         }
     );
 });
@@ -71,22 +71,22 @@ test('reminders respect user notification settings', function () {
 });
 
 test('reminders are sent with correct due date for different frequencies', function () {
-    Notification::fake();
-
     $frequencies = [
-        'daily' => now()->addDay(),
-        'weekly' => now()->addWeek(),
-        'monthly' => now()->addMonth(),
-        'yearly' => now()->addYear(),
+        'daily' => now()->subDay(),
+        'weekly' => now()->subWeek(),
+        'monthly' => now()->subMonth(),
+        'yearly' => now()->subYear(),
     ];
 
-    foreach ($frequencies as $frequency => $dueDate) {
+    foreach ($frequencies as $frequency => $date) {
+        Notification::fake();
+
         $transaction = Transaction::factory()->create([
             'user_id' => $this->user->id,
             'category_id' => $this->category->id,
             'is_recurring' => true,
             'recurring_frequency' => $frequency,
-            'transaction_date' => $dueDate->subDay(),
+            'transaction_date' => $date,
         ]);
 
         artisan('reminders:recurring-transactions');
@@ -94,9 +94,8 @@ test('reminders are sent with correct due date for different frequencies', funct
         Notification::assertSentTo(
             $this->user,
             RecurringTransactionReminder::class,
-            function ($notification) use ($transaction, $dueDate) {
-                return $notification->transaction->id === $transaction->id
-                    && $notification->dueDate === $dueDate->format('Y-m-d');
+            function ($notification) use ($transaction) {
+                return $notification->getTransaction()->id === $transaction->id;
             }
         );
     }

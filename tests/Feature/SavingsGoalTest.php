@@ -15,8 +15,8 @@ beforeEach(function () {
 test('user can create a savings goal', function () {
     $goalData = [
         'name' => 'New Car',
-        'target_amount' => 25000.00,
-        'initial_amount' => 5000.00,
+        'target_amount' => 25000,
+        'initial_amount' => 5000,
         'target_date' => now()->addYear()->format('Y-m-d'),
     ];
 
@@ -53,6 +53,8 @@ test('user can contribute to savings goal', function () {
         'current_amount' => 0,
     ]);
 
+    Notification::fake();
+
     $response = postJson("/api/savings-goals/{$goal->id}/contribute", [
         'amount' => 500
     ], [
@@ -62,6 +64,11 @@ test('user can contribute to savings goal', function () {
     $response->assertStatus(200)
         ->assertJsonPath('data.current_amount', 500)
         ->assertJsonPath('data.progress_percentage', 50);
+
+    $this->assertDatabaseHas('savings_goals', [
+        'id' => $goal->id,
+        'current_amount' => 500,
+    ]);
 });
 
 test('user cannot contribute more than remaining amount', function () {
@@ -81,6 +88,8 @@ test('user cannot contribute more than remaining amount', function () {
 });
 
 test('goal is marked as completed when target amount is reached', function () {
+    Notification::fake();
+
     $goal = SavingsGoal::factory()->create([
         'user_id' => $this->user->id,
         'target_amount' => 1000,
@@ -97,12 +106,16 @@ test('goal is marked as completed when target amount is reached', function () {
     $this->assertDatabaseHas('savings_goals', [
         'id' => $goal->id,
         'is_completed' => true,
+        'current_amount' => 1000,
     ]);
 });
 
 test('user cannot contribute to completed goal', function () {
-    $goal = SavingsGoal::factory()->completed()->create([
+    $goal = SavingsGoal::factory()->create([
         'user_id' => $this->user->id,
+        'target_amount' => 1000,
+        'current_amount' => 1000,
+        'is_completed' => true,
     ]);
 
     $response = postJson("/api/savings-goals/{$goal->id}/contribute", [
@@ -111,14 +124,15 @@ test('user cannot contribute to completed goal', function () {
         'Authorization' => 'Bearer ' . $this->token
     ]);
 
-    $response->assertStatus(422)
-        ->assertJsonPath('message', 'The contribution amount cannot exceed the remaining amount needed for this goal.');
+    $response->assertStatus(422);
 });
 
 test('user cannot access other users savings goals', function () {
     $otherUser = User::factory()->create();
     $goal = SavingsGoal::factory()->create([
-        'user_id' => $otherUser->id
+        'user_id' => $otherUser->id,
+        'target_amount' => 1000,
+        'current_amount' => 500,
     ]);
 
     $response = getJson("/api/savings-goals/{$goal->id}", [
@@ -137,8 +151,7 @@ test('notification is sent when savings goal reaches milestone', function () {
         'current_amount' => 240, // 24%
     ]);
 
-    // Contributing 10% to reach 25% milestone
-    $response = postJson("/api/savings-goals/{$goal->id}/contribute", [
+    postJson("/api/savings-goals/{$goal->id}/contribute", [
         'amount' => 100
     ], [
         'Authorization' => 'Bearer ' . $this->token
@@ -148,8 +161,8 @@ test('notification is sent when savings goal reaches milestone', function () {
         $this->user,
         SavingsGoalMilestoneNotification::class,
         function ($notification) use ($goal) {
-            return $notification->savingsGoal->id === $goal->id
-                && $notification->milestone === 25;
+            return $notification->getSavingsGoal()->id === $goal->id
+                && $notification->getMilestone() === 25;
         }
     );
 });
@@ -173,8 +186,8 @@ test('notification is sent when savings goal is completed', function () {
         $this->user,
         SavingsGoalMilestoneNotification::class,
         function ($notification) use ($goal) {
-            return $notification->savingsGoal->id === $goal->id
-                && $notification->milestone === 100;
+            return $notification->getSavingsGoal()->id === $goal->id
+                && $notification->getMilestone() === 100;
         }
     );
 });

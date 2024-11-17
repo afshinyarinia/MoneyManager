@@ -42,4 +42,14 @@ class RecurringTransactionReminder extends Notification
             'recurring_frequency' => $this->transaction->recurring_frequency,
         ];
     }
+
+    public function getTransaction(): Transaction
+    {
+        return $this->transaction;
+    }
+
+    public function getDueDate(): string
+    {
+        return $this->dueDate;
+    }
 } 

@@ -16,7 +16,7 @@ beforeEach(function () {
 
 test('user can view their notifications', function () {
     Notification::fake();
-    
+
     $budget = Budget::factory()->create([
         'user_id' => $this->user->id,
         'amount' => 1000
@@ -51,7 +51,7 @@ test('user can mark notifications as read', function () {
     ]);
 
     $this->user->notify(new BudgetExceededNotification($budget, 1200));
-    
+
     $notification = $this->user->notifications->first();
 
     $response = postJson('/api/notifications/mark-as-read', [
@@ -114,14 +114,13 @@ test('notification is sent when budget is exceeded', function () {
         'amount' => 1000
     ]);
 
-    // Simulate budget exceeded through notification
     $this->user->notify(new BudgetExceededNotification($budget, 1200));
 
     Notification::assertSentTo(
         $this->user,
         BudgetExceededNotification::class,
         function ($notification) use ($budget) {
-            return $notification->budget->id === $budget->id;
+            return $notification->getBudget()->id === $budget->id;
         }
     );
 });
@@ -135,15 +134,14 @@ test('notification is sent when savings goal milestone is reached', function () 
         'current_amount' => 500 // 50%
     ]);
 
-    // Simulate milestone reached through notification
     $this->user->notify(new SavingsGoalMilestoneNotification($savingsGoal, 50));
 
     Notification::assertSentTo(
         $this->user,
         SavingsGoalMilestoneNotification::class,
         function ($notification) use ($savingsGoal) {
-            return $notification->savingsGoal->id === $savingsGoal->id
-                && $notification->milestone === 50;
+            return $notification->getSavingsGoal()->id === $savingsGoal->id
+                && $notification->getMilestone() === 50;
         }
     );
 });
@@ -180,4 +178,4 @@ test('notifications are paginated', function () {
             'links',
             'meta'
         ]);
-}); 
+});
