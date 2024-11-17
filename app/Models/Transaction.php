@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use App\Notifications\BudgetExceededNotification;
 
 class Transaction extends Model
 {
@@ -26,6 +27,46 @@ class Transaction extends Model
         'is_recurring' => 'boolean',
         'amount' => 'decimal:2',
     ];
+
+    protected static function booted()
+    {
+        static::created(function ($transaction) {
+            if ($transaction->type === 'expense') {
+                $transaction->checkBudgetExceeded();
+            }
+        });
+    }
+
+    protected function checkBudgetExceeded()
+    {
+        $activeBudgets = Budget::where('user_id', $this->user_id)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', $this->transaction_date);
+            })
+            ->where('start_date', '<=', $this->transaction_date)
+            ->get();
+
+        foreach ($activeBudgets as $budget) {
+            $spentAmount = $budget->spent_amount;
+            
+            if ($spentAmount > $budget->amount) {
+                $settings = $this->user->notificationSetting;
+                
+                if ($settings->budget_exceeded_database || $settings->budget_exceeded_email) {
+                    $channels = [];
+                    if ($settings->budget_exceeded_database) $channels[] = 'database';
+                    if ($settings->budget_exceeded_email) $channels[] = 'mail';
+                    
+                    $this->user->notify(
+                        (new BudgetExceededNotification($budget, $spentAmount))
+                            ->via($channels)
+                    );
+                }
+            }
+        }
+    }
 
     public function user()
     {

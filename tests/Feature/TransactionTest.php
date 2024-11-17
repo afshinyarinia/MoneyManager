@@ -3,7 +3,10 @@
 use App\Models\User;
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Models\Budget;
+use App\Notifications\BudgetExceededNotification;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Notification;
 use function Pest\Laravel\{postJson, getJson, putJson, deleteJson};
 
 beforeEach(function () {
@@ -146,4 +149,91 @@ test('user cannot access other users transactions', function () {
     ]);
 
     $response->assertStatus(403);
+});
+
+test('notification is sent when transaction exceeds budget', function () {
+    Notification::fake();
+
+    $budget = Budget::factory()->create([
+        'user_id' => $this->user->id,
+        'amount' => 100,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $transactionData = [
+        'category_id' => $this->category->id,
+        'amount' => 150,
+        'type' => 'expense',
+        'description' => 'Test transaction',
+        'transaction_date' => now()->format('Y-m-d'),
+    ];
+
+    postJson('/api/transactions', $transactionData, [
+        'Authorization' => 'Bearer ' . $this->token
+    ]);
+
+    Notification::assertSentTo(
+        $this->user,
+        BudgetExceededNotification::class,
+        function ($notification) use ($budget) {
+            return $notification->budget->id === $budget->id
+                && $notification->spentAmount === 150;
+        }
+    );
+});
+
+test('notification is not sent when transaction does not exceed budget', function () {
+    Notification::fake();
+
+    Budget::factory()->create([
+        'user_id' => $this->user->id,
+        'amount' => 1000,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $transactionData = [
+        'category_id' => $this->category->id,
+        'amount' => 50,
+        'type' => 'expense',
+        'description' => 'Test transaction',
+        'transaction_date' => now()->format('Y-m-d'),
+    ];
+
+    postJson('/api/transactions', $transactionData, [
+        'Authorization' => 'Bearer ' . $this->token
+    ]);
+
+    Notification::assertNothingSent();
+});
+
+test('notification respects user notification settings', function () {
+    Notification::fake();
+
+    $budget = Budget::factory()->create([
+        'user_id' => $this->user->id,
+        'amount' => 100,
+        'start_date' => now()->subDay(),
+        'end_date' => now()->addDay(),
+    ]);
+
+    $this->user->notificationSetting()->update([
+        'budget_exceeded_email' => false,
+        'budget_exceeded_database' => false,
+    ]);
+
+    $transactionData = [
+        'category_id' => $this->category->id,
+        'amount' => 150,
+        'type' => 'expense',
+        'description' => 'Test transaction',
+        'transaction_date' => now()->format('Y-m-d'),
+    ];
+
+    postJson('/api/transactions', $transactionData, [
+        'Authorization' => 'Bearer ' . $this->token
+    ]);
+
+    Notification::assertNothingSent();
 });

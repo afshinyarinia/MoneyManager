@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Notifications\SavingsGoalMilestoneNotification;
 
 class SavingsGoal extends Model
 {
@@ -42,12 +43,41 @@ class SavingsGoal extends Model
 
     public function updateProgress($amount)
     {
+        $oldPercentage = $this->progress_percentage;
         $this->current_amount += $amount;
 
         if ($this->current_amount >= $this->target_amount) {
             $this->is_completed = true;
+            $this->checkMilestone(100);
+        } else {
+            $newPercentage = $this->progress_percentage;
+            $milestoneStep = $this->user->notificationSetting->savings_milestone_percentage;
+            
+            // Check if we've crossed a milestone
+            $oldMilestone = floor($oldPercentage / $milestoneStep) * $milestoneStep;
+            $newMilestone = floor($newPercentage / $milestoneStep) * $milestoneStep;
+            
+            if ($newMilestone > $oldMilestone) {
+                $this->checkMilestone($newMilestone);
+            }
         }
 
         $this->save();
+    }
+
+    protected function checkMilestone($milestone)
+    {
+        $settings = $this->user->notificationSetting;
+        
+        if ($settings->savings_milestone_database || $settings->savings_milestone_email) {
+            $channels = [];
+            if ($settings->savings_milestone_database) $channels[] = 'database';
+            if ($settings->savings_milestone_email) $channels[] = 'mail';
+            
+            $this->user->notify(
+                (new SavingsGoalMilestoneNotification($this, $milestone))
+                    ->via($channels)
+            );
+        }
     }
 }

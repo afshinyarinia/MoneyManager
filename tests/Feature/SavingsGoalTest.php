@@ -2,7 +2,9 @@
 
 use App\Models\User;
 use App\Models\SavingsGoal;
+use App\Notifications\SavingsGoalMilestoneNotification;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Notification;
 use function Pest\Laravel\{postJson, getJson, putJson, deleteJson};
 
 beforeEach(function () {
@@ -124,4 +126,78 @@ test('user cannot access other users savings goals', function () {
     ]);
 
     $response->assertStatus(403);
+});
+
+test('notification is sent when savings goal reaches milestone', function () {
+    Notification::fake();
+
+    $goal = SavingsGoal::factory()->create([
+        'user_id' => $this->user->id,
+        'target_amount' => 1000,
+        'current_amount' => 240, // 24%
+    ]);
+
+    // Contributing 10% to reach 25% milestone
+    $response = postJson("/api/savings-goals/{$goal->id}/contribute", [
+        'amount' => 100
+    ], [
+        'Authorization' => 'Bearer ' . $this->token
+    ]);
+
+    Notification::assertSentTo(
+        $this->user,
+        SavingsGoalMilestoneNotification::class,
+        function ($notification) use ($goal) {
+            return $notification->savingsGoal->id === $goal->id
+                && $notification->milestone === 25;
+        }
+    );
+});
+
+test('notification is sent when savings goal is completed', function () {
+    Notification::fake();
+
+    $goal = SavingsGoal::factory()->create([
+        'user_id' => $this->user->id,
+        'target_amount' => 1000,
+        'current_amount' => 900,
+    ]);
+
+    postJson("/api/savings-goals/{$goal->id}/contribute", [
+        'amount' => 100
+    ], [
+        'Authorization' => 'Bearer ' . $this->token
+    ]);
+
+    Notification::assertSentTo(
+        $this->user,
+        SavingsGoalMilestoneNotification::class,
+        function ($notification) use ($goal) {
+            return $notification->savingsGoal->id === $goal->id
+                && $notification->milestone === 100;
+        }
+    );
+});
+
+test('notification respects user notification settings', function () {
+    Notification::fake();
+
+    $this->user->notificationSetting()->update([
+        'savings_milestone_email' => false,
+        'savings_milestone_database' => false,
+    ]);
+
+    $goal = SavingsGoal::factory()->create([
+        'user_id' => $this->user->id,
+        'target_amount' => 1000,
+        'current_amount' => 240, // 24%
+    ]);
+
+    postJson("/api/savings-goals/{$goal->id}/contribute", [
+        'amount' => 100
+    ], [
+        'Authorization' => 'Bearer ' . $this->token
+    ]);
+
+    Notification::assertNothingSent();
 });
