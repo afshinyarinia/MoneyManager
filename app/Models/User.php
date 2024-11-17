@@ -36,4 +36,23 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
+
+    public function notificationSetting()
+    {
+        return $this->hasOne(NotificationSetting::class);
+    }
+
+    protected static function booted()
+    {
+        static::created(function ($user) {
+            $user->notificationSetting()->create([
+                'budget_exceeded_email' => true,
+                'budget_exceeded_database' => true,
+                'savings_milestone_email' => true,
+                'savings_milestone_database' => true,
+                'savings_milestone_percentage' => 25,
+                'recurring_transaction_reminder' => true,
+            ]);
+        });
+    }
 }
